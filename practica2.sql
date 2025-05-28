@@ -52,7 +52,7 @@ CREATE TABLE person (
     ModifiedDate datetime NOT NULL
 );
 
--- Luego inserta los datos
+
 INSERT INTO person
 SELECT * FROM AdventureWorks.Person.Person;
 
@@ -63,13 +63,13 @@ SELECT * FROM AdventureWorks.Person.Person;
 -- que tengan al menos los mismos productos de la 
 -- orden con salesorderid =  43676.
  
--- Formula divisi髇
--- T1 <- Proyecci髇(A)(R)
--- T2 <- Proyecci髇(A)((T1 X S) - R)
+-- Formula divisi贸n
+-- T1 <- Proyecci贸n(A)(R)
+-- T2 <- Proyecci贸n(A)((T1 X S) - R)
 -- T1 - T2
  
 -- lista productos de la orden 43676
--- tabla S de la formula de la divisi髇
+-- tabla S de la formula de la divisi贸n
 select productid
 from AdventureWorks.sales.SalesOrderDetail
 where salesorderid = 43676
