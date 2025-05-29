@@ -56,6 +56,142 @@ CREATE TABLE person (
 INSERT INTO person
 SELECT * FROM AdventureWorks.Person.Person;
 
+----------------------- Punto 3: Incisos a), b) & c)----------------------------------------------
+-- a) Listar el producto más vendido de cada una de las categorías registradas en la base 
+de datos. 
+SELECT 
+    pc.Name AS Categoria,
+    p.Name AS Producto,
+    suma.TotalVendido
+FROM (
+    SELECT 
+        sod.ProductID,
+        SUM(sod.OrderQty) AS TotalVendido
+    FROM SalesOrderDetail sod
+    GROUP BY sod.ProductID
+) AS suma
+JOIN Product p ON p.ProductID = suma.ProductID
+JOIN ProductSubcategory ps ON ps.ProductSubcategoryID = p.ProductSubcategoryID
+JOIN ProductCategory pc ON pc.ProductCategoryID = ps.ProductCategoryID
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM (
+        SELECT 
+            sod.ProductID,
+            SUM(sod.OrderQty) AS TotalVendido
+        FROM SalesOrderDetail sod
+        GROUP BY sod.ProductID
+    ) AS otros
+    JOIN Product po ON po.ProductID = otros.ProductID
+    JOIN ProductSubcategory pso ON pso.ProductSubcategoryID = po.ProductSubcategoryID
+    JOIN ProductCategory pco ON pco.ProductCategoryID = pso.ProductCategoryID
+    WHERE 
+        pco.ProductCategoryID = pc.ProductCategoryID AND
+        otros.TotalVendido > suma.TotalVendido
+);
+
+-- b) Listar el nombre de los clientes con más ordenes por cada uno de los territorios 
+registrados en la base de datos. 
+SELECT 
+    st.Name AS Territorio,
+    per.FirstName + ' ' + per.LastName AS Cliente,
+    cu.CustomerID,
+    conteo.Ordenes
+FROM (
+    SELECT 
+        soh.CustomerID,
+        cu.TerritoryID,
+        COUNT(*) AS Ordenes
+    FROM SalesOrderHeader soh
+    JOIN Customer cu ON cu.CustomerID = soh.CustomerID
+    GROUP BY soh.CustomerID, cu.TerritoryID
+) AS conteo
+JOIN Customer cu ON cu.CustomerID = conteo.CustomerID
+JOIN Person per ON per.BusinessEntityID = cu.PersonID
+JOIN SalesTerritory st ON st.TerritoryID = cu.TerritoryID
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM (
+        SELECT 
+            soh.CustomerID,
+            cu.TerritoryID,
+            COUNT(*) AS Ordenes
+        FROM SalesOrderHeader soh
+        JOIN Customer cu ON cu.CustomerID = soh.CustomerID
+        GROUP BY soh.CustomerID, cu.TerritoryID
+    ) AS otros
+    WHERE 
+        otros.TerritoryID = conteo.TerritoryID AND
+        otros.Ordenes > conteo.Ordenes
+);
+
+-- c) Listar los datos generales de las ordenes que tengan al menos los mismos productos 
+de la orden con salesorderid =  43676. 
+select productid
+from AdventureWorks2019.sales.SalesOrderDetail
+where salesorderid = 43676
+ 
+-- tabla R de la formula
+select salesorderid, SalesOrderDetailID, productid, OrderQty
+from AdventureWorks2019.sales.SalesOrderDetail
+ 
+-- T1
+go
+create view T1 as 
+select salesorderid, SalesOrderDetailID, OrderQty
+from AdventureWorks2019.sales.SalesOrderDetail
+ 
+-- T2
+go
+create view T1XS as
+select *
+from T1 cross join (select productid
+                    from AdventureWorks2019.sales.SalesOrderDetail
+                    where salesorderid = 43676) as S
+ 
+go
+create view T2 as 
+select salesorderid, SalesOrderDetailID, OrderQty
+from (select *
+	  from T1XS
+	  except
+	  select salesorderid, SalesOrderDetailID, OrderQty, productid
+	  from AdventureWorks2019.sales.SalesOrderDetail) resta
+ 
+-- T1 - T2
+select *
+from T1
+except
+select *
+from T2
+ 
+select salesorderid, count(*)
+from AdventureWorks2019.sales.SalesOrderDetail
+where ProductID in (
+	select productid
+	from AdventureWorks2019.Sales.SalesOrderDetail
+	where SalesOrderID = 43676)
+group by salesorderid
+having count(*) = 5
+ 
+select salesorderid,productid
+from AdventureWorks2019.Sales.SalesOrderDetail
+where SalesOrderID in (43676, 46052, 43891)
+order by SalesOrderID, ProductID
+
+
+----------------------- Punto 4: Incisos a), b) & c)----------------------------------------------
+-- a) Listar el producto más vendido de cada una de las categorías registradas en la base 
+de datos. 
+
+-- b) Listar el nombre de los clientes con más ordenes por cada uno de los territorios 
+registrados en la base de datos. 
+
+-- c) Listar los datos generales de las ordenes que tengan al menos los mismos productos 
+de la orden con salesorderid =  43676.
+
+
+	
 
 ----------------------- EJERCICIOS DADOS EN CLASE -----------------------------------------------------
 
