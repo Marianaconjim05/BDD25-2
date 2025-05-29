@@ -180,7 +180,7 @@ where SalesOrderID in (43676, 46052, 43891)
 order by SalesOrderID, ProductID
 
 
------------------------ Punto 4: Incisos a), b) & c)----------------------------------------------
+----------------------- Punto 5: Incisos a), b) & c)----------------------------------------------
 -- a) Listar el producto más vendido de cada una de las categorías registradas en la base 
 de datos. 
 
