@@ -181,14 +181,128 @@ order by SalesOrderID, ProductID
 
 
 ----------------------- Punto 5: Incisos a), b) & c)----------------------------------------------
--- a) Listar el producto más vendido de cada una de las categorías registradas en la base 
-de datos. 
+---5. Generar los planes de ejecución de las consultas en la base de datos AdventureWorks y comparar con los planes de ejecución del punto 4. 
+---a) Listar el producto más vendido de cada una de las categorías registradas en la base de datos.
 
--- b) Listar el nombre de los clientes con más ordenes por cada uno de los territorios 
-registrados en la base de datos. 
+SELECT 
+	pc.Name AS Categoria,
+	p.Name AS Producto, 
+	suma.TotalVendido
+FROM (
+	SELECT
+		sod.ProductID,
+		SUM(sod.OrderQty) AS TotalVendido
+		FROM sales.SalesOrderDetail sod
+		GROUP BY sod.ProductID
+) AS suma
+JOIN Production.Product p ON p.ProductID = suma.ProductID
+JOIN Production.ProductSubcategory ps ON ps.ProductSubcategoryID = p.ProductSubcategoryID
+JOIN Production.ProductCategory pc ON pc.ProductCategoryID = ps.ProductCategoryID
+WHERE NOT EXISTS (
+	SELECT 1
+	FROM (
+		SELECT
+			sod.ProductID,
+			Sum(sod.OrderQty) AS TotalVendido
+		FROM sales.SalesOrderDetail sod
+		GROUP BY sod.ProductID
+	) AS otros
+	JOIN Production.Product po ON po.ProductID = otros.ProductID
+	JOIN Production.ProductSubcategory pso ON pso.ProductSubcategoryID = pso.ProductCategoryID
+	JOIN Production.ProductCategory pco ON pco.ProductCategoryID = pso.ProductCategoryID
+	WHERE
+		pco.ProductCategoryID = pc.ProductCategoryID AND
+		otros.TotalVendido > suma.TotalVendido
+);
 
--- c) Listar los datos generales de las ordenes que tengan al menos los mismos productos 
-de la orden con salesorderid =  43676.
+--- b) Listar el nombre de los clientes con más ordenes por cada uno de los territorios registrados en la base de datos. 
+
+SELECT 
+    st.Name AS Territorio,
+    CONCAT(p.FirstName, ' ', p.LastName) AS Cliente,
+    conteo.TotalOrdenes
+FROM (
+    SELECT 
+        soh.CustomerID,
+        COUNT(*) AS TotalOrdenes
+    FROM Sales.SalesOrderHeader soh
+    GROUP BY soh.CustomerID
+) AS conteo
+JOIN Sales.Customer c ON c.CustomerID = conteo.CustomerID
+JOIN Person.Person p ON p.BusinessEntityID = c.PersonID
+JOIN Sales.SalesTerritory st ON st.TerritoryID = c.TerritoryID
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM (
+        SELECT 
+            soh.CustomerID,
+            COUNT(*) AS TotalOrdenes
+        FROM Sales.SalesOrderHeader soh
+        GROUP BY soh.CustomerID
+    ) AS otros
+    JOIN Sales.Customer co ON co.CustomerID = otros.CustomerID
+    WHERE 
+        co.TerritoryID = c.TerritoryID AND
+        otros.TotalOrdenes > conteo.TotalOrdenes
+);
+
+--- c) Listar los datos generales de las ordenes que tengan al menos los mismos productos de la orden con salesorderid =  43676.
+
+
+SELECT ProductID
+FROM AdventureWorks2019.Sales.SalesOrderDetail
+WHERE SalesOrderID = 43676;
+
+SELECT SalesOrderID, SalesOrderDetailID, ProductID, OrderQty
+FROM AdventureWorks2019.Sales.SalesOrderDetail;
+
+GO
+CREATE VIEW T1 AS 
+SELECT SalesOrderID, ProductID
+FROM AdventureWorks2019.Sales.SalesOrderDetail;
+GO
+
+GO
+CREATE VIEW T1XS AS
+SELECT *
+FROM T1
+CROSS JOIN (
+    SELECT ProductID
+    FROM AdventureWorks2019.Sales.SalesOrderDetail
+    WHERE SalesOrderID = 43676
+) AS S;
+GO
+
+GO
+CREATE VIEW T2 AS 
+SELECT SalesOrderID, ProductID
+FROM (
+    SELECT * 
+    FROM T1XS
+    EXCEPT
+    SELECT SalesOrderID, ProductID
+    FROM AdventureWorks2019.Sales.SalesOrderDetail
+) AS diferencia;
+GO
+
+SELECT DISTINCT SalesOrderID
+INTO #OrdenesValidas
+FROM (
+    SELECT * FROM T1
+    EXCEPT
+    SELECT * FROM T2
+) AS resultado;
+
+
+SELECT soh.SalesOrderID, soh.OrderDate, soh.DueDate, soh.ShipDate, soh.Status, soh.TotalDue
+FROM AdventureWorks2019.Sales.SalesOrderHeader soh
+JOIN #OrdenesValidas ov ON soh.SalesOrderID = ov.SalesOrderID
+ORDER BY soh.SalesOrderID;
+
+DROP VIEW T1;
+DROP VIEW T1XS;
+DROP VIEW T2;
+DROP TABLE #OrdenesValidas;
 
 
 	
