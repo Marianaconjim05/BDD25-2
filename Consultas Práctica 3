@@ -1,0 +1,131 @@
+Nota: Ejecutar consultas en cualquier SQL Server
+
+
+-----------Consulta 3 Modificada-----------------------------------------------------------------------------------------
+SELECT * FROM (
+    SELECT * FROM NODO1_SQL.covidHistorico.dbo.datoscovid AS d1
+    CROSS APPLY (
+        SELECT 'Diabetes' AS morbilidad, 
+            (COUNT(CASE WHEN d1.DIABETES = 1 AND d1.CLASIFICACION_FINAL = 3 THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(CASE WHEN d1.CLASIFICACION_FINAL = 3 THEN 1 END), 0) AS porcentaje
+    ) q1
+    UNION ALL
+    SELECT * FROM NODO2_SQL.covidHistorico.dbo.datoscovid AS d2
+    CROSS APPLY (
+        SELECT 'Obesidad', 
+            (COUNT(CASE WHEN d2.OBESIDAD = 1 AND d2.CLASIFICACION_FINAL = 3 THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(CASE WHEN d2.CLASIFICACION_FINAL = 3 THEN 1 END), 0)
+    )
+    UNION ALL
+    SELECT * FROM NODO3_SQL.covidHistorico.dbo.datoscovid AS d3
+    CROSS APPLY (
+        SELECT 'Hipertensión', 
+            (COUNT(CASE WHEN d3.HIPERTENSION = 1 AND d3.CLASIFICACION_FINAL = 3 THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(CASE WHEN d3.CLASIFICACION_FINAL = 3 THEN 1 END), 0)
+    )
+    UNION ALL
+    SELECT * FROM OPENQUERY(NODO4_MYSQL, '
+        SELECT "Diabetes" AS morbilidad,
+        (SUM(CASE WHEN DIABETES = 1 AND CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END) * 100.0) / 
+        NULLIF(SUM(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END), 0) AS porcentaje
+        FROM datoscovid
+    ')
+) AS distribuidas;
+
+--------------------Consulta 4  Modificada -----------------------------------------------------------------------
+SELECT DISTINCT MUNICIPIO_RES
+FROM (
+    -- Nodo 1
+    SELECT MUNICIPIO_RES FROM NODO1_SQL.covidHistorico.dbo.datoscovid
+    WHERE MUNICIPIO_RES NOT IN (
+        SELECT MUNICIPIO_RES FROM NODO1_SQL.covidHistorico.dbo.datoscovid
+        WHERE CLASIFICACION_FINAL = 3 AND (DIABETES = 1 OR OBESIDAD = 1 OR TABAQUISMO = 1)
+    )
+    UNION
+    -- Nodo 2
+    SELECT MUNICIPIO_RES FROM NODO2_SQL.covidHistorico.dbo.datoscovid
+    WHERE MUNICIPIO_RES NOT IN (
+        SELECT MUNICIPIO_RES FROM NODO2_SQL.covidHistorico.dbo.datoscovid
+        WHERE CLASIFICACION_FINAL = 3 AND (DIABETES = 1 OR OBESIDAD = 1 OR TABAQUISMO = 1)
+    )
+    UNION
+    -- Nodo 3
+    SELECT MUNICIPIO_RES FROM NODO3_SQL.covidHistorico.dbo.datoscovid
+    WHERE MUNICIPIO_RES NOT IN (
+        SELECT MUNICIPIO_RES FROM NODO3_SQL.covidHistorico.dbo.datoscovid
+        WHERE CLASIFICACION_FINAL = 3 AND (DIABETES = 1 OR OBESIDAD = 1 OR TABAQUISMO = 1)
+    )
+    UNION
+    -- Nodo 4 MySQL
+    SELECT MUNICIPIO_RES FROM OPENQUERY(NODO4_MYSQL, '
+        SELECT DISTINCT MUNICIPIO_RES 
+        FROM datoscovid
+        WHERE MUNICIPIO_RES NOT IN (
+            SELECT DISTINCT MUNICIPIO_RES 
+            FROM datoscovid 
+            WHERE CLASIFICACION_FINAL = 3 AND (DIABETES = 1 OR OBESIDAD = 1 OR TABAQUISMO = 1)
+        )
+    ')
+) AS municipios_limpios
+ORDER BY MUNICIPIO_RES;
+
+---------------------------------Consulta 5 Modificada ---------------------------------------------------------------------------
+SELECT ENTIDAD_NAC AS estado, SUM(total_recuperados_con_neumonia) AS total
+FROM (
+    SELECT ENTIDAD_NAC, COUNT(*) AS total_recuperados_con_neumonia
+    FROM NODO1_SQL.covidHistorico.dbo.datoscovid
+    WHERE CLASIFICACION_FINAL = 3 AND NEUMONIA = 1 AND FECHA_DEF IS NULL
+    GROUP BY ENTIDAD_NAC
+    UNION ALL
+    SELECT ENTIDAD_NAC, COUNT(*)
+    FROM NODO2_SQL.covidHistorico.dbo.datoscovid
+    WHERE CLASIFICACION_FINAL = 3 AND NEUMONIA = 1 AND FECHA_DEF IS NULL
+    GROUP BY ENTIDAD_NAC
+    UNION ALL
+    SELECT ENTIDAD_NAC, COUNT(*)
+    FROM NODO3_SQL.covidHistorico.dbo.datoscovid
+    WHERE CLASIFICACION_FINAL = 3 AND NEUMONIA = 1 AND FECHA_DEF IS NULL
+    GROUP BY ENTIDAD_NAC
+    UNION ALL
+    SELECT * FROM OPENQUERY(NODO4_MYSQL, '
+        SELECT ENTIDAD_NAC, COUNT(*) AS total_recuperados_con_neumonia
+        FROM datoscovid
+        WHERE CLASIFICACION_FINAL = 3 AND NEUMONIA = 1 AND FECHA_DEF IS NULL
+        GROUP BY ENTIDAD_NAC
+    ')
+) AS recuperados
+GROUP BY ENTIDAD_NAC
+ORDER BY total DESC;
+
+------------------------------Consulta 7 Modificada ---------------------------------------------------
+CREATE VIEW casos AS
+SELECT 
+    ENTIDAD_UM AS entidad,
+    YEAR(FECHA_INGRESO) AS año,
+    MONTH(FECHA_INGRESO) AS mes,
+    SUM(CASE WHEN CLASIFICACION_FINAL=3 THEN 1 ELSE 0 END) AS casos_confirmados,
+    SUM(CASE WHEN CLASIFICACION_FINAL=6 THEN 1 ELSE 0 END) AS casos_sospechosos
+FROM datoscovid
+WHERE CLASIFICACION_FINAL IN (3, 6) AND YEAR(FECHA_INGRESO) IN (2020, 2021)
+GROUP BY ENTIDAD_UM, YEAR(FECHA_INGRESO), MONTH(FECHA_INGRESO);
+
+----------------------------Consulta Distribuida ----------------------------------------------------------------
+WITH casos AS (
+    SELECT * FROM NODO1_SQL.covidHistorico.dbo.casos
+    UNION ALL
+    SELECT * FROM NODO2_SQL.covidHistorico.dbo.casos
+    UNION ALL
+    SELECT * FROM NODO3_SQL.covidHistorico.dbo.casos
+    UNION ALL
+    SELECT * FROM OPENQUERY(NODO4_MYSQL, 'SELECT * FROM casos')
+),
+maximos AS (
+    SELECT entidad, año, MAX(casos_confirmados + casos_sospechosos) AS m_casos
+    FROM casos
+    GROUP BY entidad, año
+)
+SELECT c.entidad, c.año, c.mes, c.casos_confirmados, c.casos_sospechosos
+FROM casos c
+JOIN maximos m ON c.entidad = m.entidad AND c.año = m.año
+WHERE (c.casos_confirmados + c.casos_sospechosos) = m.m_casos
+ORDER BY c.entidad, c.año;
