@@ -1,29 +1,45 @@
 Nota: Ejecutar consultas en cualquier SQL Server
 
 
------------Consulta 3 Modificada-----------------------------------------------------------------------------------------
+--- PRACTICA 3--------------------
+
+--- Consulta 3 ------------------------------
+-- Lista el porcentaje de casos confirmados recuperados por estado y por año.
 SELECT * FROM (
-    SELECT * FROM NODO1_SQL.covidHistorico.dbo.datoscovid AS d1
-    CROSS APPLY (
-        SELECT 'Diabetes' AS morbilidad, 
-            (COUNT(CASE WHEN d1.DIABETES = 1 AND d1.CLASIFICACION_FINAL = 3 THEN 1 END) * 100.0) / 
-            NULLIF(COUNT(CASE WHEN d1.CLASIFICACION_FINAL = 3 THEN 1 END), 0) AS porcentaje
-    ) q1
-    UNION ALL
-    SELECT * FROM NODO2_SQL.covidHistorico.dbo.datoscovid AS d2
-    CROSS APPLY (
-        SELECT 'Obesidad', 
-            (COUNT(CASE WHEN d2.OBESIDAD = 1 AND d2.CLASIFICACION_FINAL = 3 THEN 1 END) * 100.0) / 
-            NULLIF(COUNT(CASE WHEN d2.CLASIFICACION_FINAL = 3 THEN 1 END), 0)
-    )
-    UNION ALL
-    SELECT * FROM NODO3_SQL.covidHistorico.dbo.datoscovid AS d3
-    CROSS APPLY (
-        SELECT 'Hipertensión', 
-            (COUNT(CASE WHEN d3.HIPERTENSION = 1 AND d3.CLASIFICACION_FINAL = 3 THEN 1 END) * 100.0) / 
-            NULLIF(COUNT(CASE WHEN d3.CLASIFICACION_FINAL = 3 THEN 1 END), 0)
-    )
-    UNION ALL
+	--- YUVIA (NORTE) -------
+	SELECT * FROM OPENQUERY(YUVIA, 'SELECT ''Diabetes'' AS morbilidad, 
+            (COUNT(CASE WHEN DIABETES = 1 AND CLASIFICACION_FINAL = 3 THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 END), 0) AS porcentaje
+        FROM datoscovid_norte
+        UNION ALL
+        SELECT ''Obesidad'', ... FROM datoscovid_norte
+        UNION ALL
+        SELECT ''Hipertensión'', ... FROM datoscovid_norte
+    ')
+	UNION ALL
+	--- 25.49.245.229\SQLESPRESS (CENTRO-SUR) --------
+	SELECT * OPENQUERY(25.49.245.229\SQLEXPRESS, 'SELECT ''Diabetes'' AS morbilidad, 
+            (COUNT(CASE WHEN DIABETES = 1 AND CLASIFICACION_FINAL = 3 THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 END), 0) AS porcentaje
+        FROM datoscovid_norte
+        UNION ALL
+        SELECT ''Obesidad'', ... FROM datoscovid_norte
+        UNION ALL
+        SELECT ''Hipertensión'', ... FROM datoscovid_norte
+    ') 
+	UNION ALL
+	--- PC-MONZEE\SQLEXPRESS03----------
+	SELECT *FROM OPENQUERY(PC-MONZEE\SQLEXPRESS03, 'SELECT ''Diabetes'' AS morbilidad, 
+            (COUNT(CASE WHEN DIABETES = 1 AND CLASIFICACION_FINAL = 3 THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 END), 0) AS porcentaje
+        FROM datoscovid_norte
+        UNION ALL
+        SELECT ''Obesidad'', ... FROM datoscovid_norte
+        UNION ALL
+        SELECT ''Hipertensión'', ... FROM datoscovid_norte
+    ')
+	UNION ALL
+	---MySQL-----------------
     SELECT * FROM OPENQUERY(NODO4_MYSQL, '
         SELECT "Diabetes" AS morbilidad,
         (SUM(CASE WHEN DIABETES = 1 AND CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END) * 100.0) / 
