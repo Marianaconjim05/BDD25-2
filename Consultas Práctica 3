@@ -4,49 +4,85 @@ Nota: Ejecutar consultas en cualquier SQL Server
 --- PRACTICA 3--------------------
 
 --- Consulta 3 ------------------------------
--- Lista el porcentaje de casos confirmados recuperados por estado y por año.
-SELECT * FROM (
-	--- YUVIA (NORTE) -------
-	SELECT * FROM OPENQUERY(YUVIA, 'SELECT ''Diabetes'' AS morbilidad, 
-            (COUNT(CASE WHEN DIABETES = 1 AND CLASIFICACION_FINAL = 3 THEN 1 END) * 100.0) / 
-            NULLIF(COUNT(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 END), 0) AS porcentaje
-        FROM datoscovid_norte
-        UNION ALL
-        SELECT ''Obesidad'', ... FROM datoscovid_norte
-        UNION ALL
-        SELECT ''Hipertensión'', ... FROM datoscovid_norte
-    ')
-	UNION ALL
-	--- 25.49.245.229\SQLESPRESS (CENTRO-SUR) --------
-	SELECT * OPENQUERY(25.49.245.229\SQLEXPRESS, 'SELECT ''Diabetes'' AS morbilidad, 
-            (COUNT(CASE WHEN DIABETES = 1 AND CLASIFICACION_FINAL = 3 THEN 1 END) * 100.0) / 
-            NULLIF(COUNT(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 END), 0) AS porcentaje
-        FROM datoscovid_norte
-        UNION ALL
-        SELECT ''Obesidad'', ... FROM datoscovid_norte
-        UNION ALL
-        SELECT ''Hipertensión'', ... FROM datoscovid_norte
-    ') 
-	UNION ALL
-	--- PC-MONZEE\SQLEXPRESS03----------
-	SELECT *FROM OPENQUERY(PC-MONZEE\SQLEXPRESS03, 'SELECT ''Diabetes'' AS morbilidad, 
-            (COUNT(CASE WHEN DIABETES = 1 AND CLASIFICACION_FINAL = 3 THEN 1 END) * 100.0) / 
-            NULLIF(COUNT(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 END), 0) AS porcentaje
-        FROM datoscovid_norte
-        UNION ALL
-        SELECT ''Obesidad'', ... FROM datoscovid_norte
-        UNION ALL
-        SELECT ''Hipertensión'', ... FROM datoscovid_norte
-    ')
-	UNION ALL
-	---MySQL-----------------
-    SELECT * FROM OPENQUERY(NODO4_MYSQL, '
-        SELECT "Diabetes" AS morbilidad,
-        (SUM(CASE WHEN DIABETES = 1 AND CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END) * 100.0) / 
-        NULLIF(SUM(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END), 0) AS porcentaje
-        FROM datoscovid
-    ')
-) AS distribuidas;
+SELECT 
+    morbilidad, 
+    SUM(casos) AS casos_totales, 
+    SUM(poblacion) AS poblacion_total, 
+    (SUM(casos) * 100.0 / SUM(poblacion)) AS porcentaje
+FROM (
+    SELECT 
+        'Diabetes' AS morbilidad,
+        SUM(CASE WHEN DIABETES = 1 AND CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END) AS casos,
+        SUM(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END) AS poblacion
+    FROM [PC-MONZEE\SQLEXPRESS03].[covidHistorico].[dbo].[datoscovid_centro_norte]
+    UNION ALL
+    SELECT 
+        'Obesidad' AS morbilidad,
+        SUM(CASE WHEN OBESIDAD = 1 AND CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END),
+        SUM(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END)
+    FROM [PC-MONZEE\SQLEXPRESS03].[covidHistorico].[dbo].[datoscovid_centro_norte]
+    UNION ALL
+    SELECT 
+        'Hipertensión' AS morbilidad,
+        SUM(CASE WHEN HIPERTENSION = 1 AND CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END),
+        SUM(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END)
+    FROM [PC-MONZEE\SQLEXPRESS03].[covidHistorico].[dbo].[datoscovid_centro_norte]
+    UNION ALL
+    SELECT 
+        'Diabetes' AS morbilidad,
+        SUM(CASE WHEN DIABETES = 1 AND CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END),
+        SUM(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END)
+    FROM [25.49.245.229].[covidHistorico].[dbo].[datoscovid_centro_sur]
+    UNION ALL
+    SELECT 
+        'Obesidad' AS morbilidad,
+        SUM(CASE WHEN OBESIDAD = 1 AND CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END),
+        SUM(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END)
+    FROM [25.49.245.229].[covidHistorico].[dbo].[datoscovid_centro_sur]
+    UNION ALL
+    SELECT 
+        'Hipertensión' AS morbilidad,
+        SUM(CASE WHEN HIPERTENSION = 1 AND CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END),
+        SUM(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END)
+    FROM [25.49.245.229].[covidHistorico].[dbo].[datoscovid_centro_sur]
+    UNION ALL
+    SELECT 
+        'Diabetes' AS morbilidad,
+        SUM(CASE WHEN DIABETES = 1 AND CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END),
+        SUM(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END)
+    FROM [YUVIA\ABIGAIL].[covidHistorico].[dbo].[datoscovid_norte]
+    UNION ALL
+    SELECT 
+        'Obesidad' AS morbilidad,
+        SUM(CASE WHEN OBESIDAD = 1 AND CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END),
+        SUM(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END)
+    FROM [YUVIA\ABIGAIL].[covidHistorico].[dbo].[datoscovid_norte]
+    UNION ALL
+    SELECT 
+        'Hipertensión' AS morbilidad,
+        SUM(CASE WHEN HIPERTENSION = 1 AND CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END),
+        SUM(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END)
+    FROM [YUVIA\ABIGAIL].[covidHistorico].[dbo].[datoscovid_norte]
+    UNION ALL
+    SELECT 
+        'Diabetes' AS morbilidad,
+        SUM(CASE WHEN DIABETES = 1 AND CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END),
+        SUM(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END)
+    FROM OPENQUERY([NODO_MYSQL], 'SELECT * FROM covidhistorico.datoscovid')
+    UNION ALL
+    SELECT 
+        'Obesidad' AS morbilidad,
+        SUM(CASE WHEN OBESIDAD = 1 AND CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END),
+        SUM(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END)
+    FROM OPENQUERY([NODO_MYSQL], 'SELECT * FROM covidhistorico.datoscovid')
+    UNION ALL
+    SELECT 
+        'Hipertensión' AS morbilidad,
+        SUM(CASE WHEN HIPERTENSION = 1 AND CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END),
+        SUM(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END)
+    FROM OPENQUERY([NODO_MYSQL], 'SELECT * FROM covidhistorico.datoscovid')
+) AS combined_data
+GROUP BY morbilidad;
 
 --------------------Consulta 4  Modificada -----------------------------------------------------------------------
 SELECT DISTINCT MUNICIPIO_RES
