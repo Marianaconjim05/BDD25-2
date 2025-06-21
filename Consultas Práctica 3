@@ -3,8 +3,14 @@ Nota: Ejecutar consultas en cualquier SQL Server
 
 -----Fracmentacion de nodos por entidades---------------------------------------------------------
 --Nodo A "Norte" Sql Server
-
-
+use covidHistorico
+go
+-- Division tablas y traspaso
+SELECT * INTO datoscovid_norte
+FROM covidHistorico.dbo.datoscovid
+WHERE ENTIDAD_RES IN (02,03, 05, 08, 10, 26, 25, 19);
+-- Visualizacion fragmento
+SELECT * FROM datoscovid_norte
 
 --Nodo B "Centro_Norte" Sql Server
 
@@ -22,6 +28,16 @@ WHERE ENTIDAD_RES IN (09,15,17,21,29,13,16,12);
 SELECT * FROM datoscovid_centro_sur
     
 --Nodo D "Sur" MySQL
+Use covidHistorico;
+go
+-- Division de tablas y traspaso
+INSERT INTO OPENQUERY(NODO_MYSQL, 'SELECT * FROM covidhistorico.datoscovid')
+SELECT * FROM datoscovid WHERE entidad_res IN (30, 20, 07, 27, 04, 31, 23, 28) ;
+-- Consulta de fragmento
+SELECT * into datos_sureste
+FROM OPENQUERY(NODO_MYSQL, 'SELECT * FROM covidhistorico.datoscovid')
+
+
 
 --- Consulta 3 ------------------------------
 SELECT 
