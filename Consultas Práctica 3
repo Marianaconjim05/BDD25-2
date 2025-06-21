@@ -14,6 +14,14 @@ SELECT * FROM datoscovid_norte
 
 --Nodo B "Centro_Norte" Sql Server
 
+Use covidHistorico
+go
+-- Division tablas y traspaso
+SELECT * INTO datoscovid_centro_norte
+FROM covidHistorico.dbo.datoscovid
+WHERE ENTIDAD_RES IN (01, 32, 24, 11, 22, 14, 18, 06);
+-- Visualizacion fragmento
+SELECT * FROM datoscovid_centro_norte;
 
 
 --Nodo C "Centro_Sur" Sql Server
