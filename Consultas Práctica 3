@@ -177,34 +177,60 @@ GROUP BY ENTIDAD_NAC
 ORDER BY total DESC;
 
 ------------------------------Consulta 7 Modificada ---------------------------------------------------
-CREATE VIEW casos AS
-SELECT 
-    ENTIDAD_UM AS entidad,
-    YEAR(FECHA_INGRESO) AS año,
-    MONTH(FECHA_INGRESO) AS mes,
-    SUM(CASE WHEN CLASIFICACION_FINAL=3 THEN 1 ELSE 0 END) AS casos_confirmados,
-    SUM(CASE WHEN CLASIFICACION_FINAL=6 THEN 1 ELSE 0 END) AS casos_sospechosos
-FROM datoscovid
-WHERE CLASIFICACION_FINAL IN (3, 6) AND YEAR(FECHA_INGRESO) IN (2020, 2021)
-GROUP BY ENTIDAD_UM, YEAR(FECHA_INGRESO), MONTH(FECHA_INGRESO);
+SELECT ENTIDAD_UM, FECHA_INGRESO, CLASIFICACION_FINAL
+INTO #temporal_casos
+FROM (
+   
+    SELECT ENTIDAD_UM, FECHA_INGRESO, CLASIFICACION_FINAL
+    FROM [YUVIA\ABIGAIL].[covidHistorico].[dbo].[datoscovid_norte]
+    WHERE CLASIFICACION_FINAL IN (3, 6) AND YEAR(FECHA_INGRESO) IN (2020, 2021)
+    
+    UNION ALL
 
-----------------------------Consulta Distribuida ----------------------------------------------------------------
+    SELECT ENTIDAD_UM, FECHA_INGRESO, CLASIFICACION_FINAL
+    FROM [PC-MONZEE\SQLEXPRESS03].[covidHistorico].[dbo].[datoscovid_centro_norte]
+    WHERE CLASIFICACION_FINAL IN (3, 6) AND YEAR(FECHA_INGRESO) IN (2020, 2021)
+
+    UNION ALL
+
+   
+    SELECT ENTIDAD_UM, FECHA_INGRESO, CLASIFICACION_FINAL
+    FROM [25.49.245.229].[covidHistorico].[dbo].[datoscovid_centro_sur]
+    WHERE CLASIFICACION_FINAL IN (3, 6) AND YEAR(FECHA_INGRESO) IN (2020, 2021)
+
+    UNION ALL
+
+    SELECT ENTIDAD_UM, FECHA_INGRESO, CLASIFICACION_FINAL
+    FROM OPENQUERY([NODO_MYSQL], '
+        SELECT ENTIDAD_UM, FECHA_INGRESO, CLASIFICACION_FINAL
+        FROM datoscovid
+        WHERE CLASIFICACION_FINAL IN (3, 6)
+        AND YEAR(FECHA_INGRESO) IN (2020, 2021)
+    ')
+) AS datos_combinados;
+
 WITH casos AS (
-    SELECT * FROM NODO1_SQL.covidHistorico.dbo.casos
-    UNION ALL
-    SELECT * FROM NODO2_SQL.covidHistorico.dbo.casos
-    UNION ALL
-    SELECT * FROM NODO3_SQL.covidHistorico.dbo.casos
-    UNION ALL
-    SELECT * FROM OPENQUERY(NODO4_MYSQL, 'SELECT * FROM casos')
-),
-maximos AS (
+    SELECT 
+        ENTIDAD_UM AS entidad,
+        YEAR(FECHA_INGRESO) AS año,
+        MONTH(FECHA_INGRESO) AS mes,
+        SUM(CASE WHEN CLASIFICACION_FINAL = 3 THEN 1 ELSE 0 END) AS casos_confirmados,
+        SUM(CASE WHEN CLASIFICACION_FINAL = 6 THEN 1 ELSE 0 END) AS casos_sospechosos
+    FROM #temporal_casos
+    GROUP BY ENTIDAD_UM, YEAR(FECHA_INGRESO), MONTH(FECHA_INGRESO)
+)
+
+SELECT c.entidad, c.año, c.mes, c.casos_confirmados, c.casos_sospechosos
+FROM casos c
+JOIN (
     SELECT entidad, año, MAX(casos_confirmados + casos_sospechosos) AS m_casos
     FROM casos
     GROUP BY entidad, año
-)
-SELECT c.entidad, c.año, c.mes, c.casos_confirmados, c.casos_sospechosos
-FROM casos c
-JOIN maximos m ON c.entidad = m.entidad AND c.año = m.año
-WHERE (c.casos_confirmados + c.casos_sospechosos) = m.m_casos
+) maximos
+ON c.entidad = maximos.entidad
+AND c.año = maximos.año
+AND (c.casos_confirmados + c.casos_sospechosos) = maximos.m_casos
 ORDER BY c.entidad, c.año;
+
+DROP TABLE #temporal_casos;
+
