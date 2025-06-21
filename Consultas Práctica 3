@@ -1,7 +1,27 @@
 Nota: Ejecutar consultas en cualquier SQL Server
-
-
 --- PRACTICA 3--------------------
+
+-----Fracmentacion de nodos por entidades---------------------------------------------------------
+--Nodo A "Norte" Sql Server
+
+
+
+--Nodo B "Centro_Norte" Sql Server
+
+
+
+--Nodo C "Centro_Sur" Sql Server
+
+Use covidHistorico;
+go
+--Traspasar y dividir las tablas
+SELECT * INTO datoscovid_centro_sur
+FROM covidHistorico.dbo.datoscovid
+WHERE ENTIDAD_RES IN (09,15,17,21,29,13,16,12);
+--Visualizar la fragmentacion
+SELECT * FROM datoscovid_centro_sur
+    
+--Nodo D "Sur" MySQL
 
 --- Consulta 3 ------------------------------
 SELECT 
@@ -85,41 +105,48 @@ FROM (
 GROUP BY morbilidad;
 
 --------------------Consulta 4  Modificada -----------------------------------------------------------------------
+--Municipios que no tengan casos confirmados de hipertensión, obesidad, diabetes y tabaquismo.
+
+SELECT DISTINCT MUNICIPIO_RES INTO #temporal_municipios
+FROM (
+    SELECT MUNICIPIO_RES 
+    FROM [YUVIA\ABIGAIL].[covidHistorico].[dbo].[datoscovid_norte]
+    WHERE CLASIFICACION_FINAL = 3 AND (DIABETES = 1 OR OBESIDAD = 1 OR TABAQUISMO = 1)
+    UNION
+    SELECT MUNICIPIO_RES 
+    FROM [PC-MONZEE\SQLEXPRESS03].[covidHistorico].[dbo].[datoscovid_centro_norte]
+    WHERE CLASIFICACION_FINAL = 3 AND (DIABETES = 1 OR OBESIDAD = 1 OR TABAQUISMO = 1)
+    UNION    
+    SELECT MUNICIPIO_RES 
+    FROM covidHistorico.dbo.[datoscovid_centro_sur]
+    WHERE CLASIFICACION_FINAL = 3 AND (DIABETES = 1 OR OBESIDAD = 1 OR TABAQUISMO = 1)    
+    UNION    
+    SELECT MUNICIPIO_RES 
+    FROM OPENQUERY([MYSQLYUVIA], '
+        SELECT MUNICIPIO_RES 
+        FROM datoscovid 
+        WHERE CLASIFICACION_FINAL = 3
+        AND (DIABETES = 1 OR OBESIDAD = 1 OR TABAQUISMO = 1)
+    ')
+) AS datos;
+
 SELECT DISTINCT MUNICIPIO_RES
 FROM (
-    -- Nodo 1
-    SELECT MUNICIPIO_RES FROM NODO1_SQL.covidHistorico.dbo.datoscovid
-    WHERE MUNICIPIO_RES NOT IN (
-        SELECT MUNICIPIO_RES FROM NODO1_SQL.covidHistorico.dbo.datoscovid
-        WHERE CLASIFICACION_FINAL = 3 AND (DIABETES = 1 OR OBESIDAD = 1 OR TABAQUISMO = 1)
-    )
+    SELECT MUNICIPIO_RES FROM [YUVIA\ABIGAIL].[covidHistorico].[dbo].[datoscovid_norte]
     UNION
-    -- Nodo 2
-    SELECT MUNICIPIO_RES FROM NODO2_SQL.covidHistorico.dbo.datoscovid
-    WHERE MUNICIPIO_RES NOT IN (
-        SELECT MUNICIPIO_RES FROM NODO2_SQL.covidHistorico.dbo.datoscovid
-        WHERE CLASIFICACION_FINAL = 3 AND (DIABETES = 1 OR OBESIDAD = 1 OR TABAQUISMO = 1)
-    )
+    SELECT MUNICIPIO_RES FROM [PC-MONZEE\SQLEXPRESS03].[covidHistorico].[dbo].[datoscovid_centro_norte]
     UNION
-    -- Nodo 3
-    SELECT MUNICIPIO_RES FROM NODO3_SQL.covidHistorico.dbo.datoscovid
-    WHERE MUNICIPIO_RES NOT IN (
-        SELECT MUNICIPIO_RES FROM NODO3_SQL.covidHistorico.dbo.datoscovid
-        WHERE CLASIFICACION_FINAL = 3 AND (DIABETES = 1 OR OBESIDAD = 1 OR TABAQUISMO = 1)
-    )
+    SELECT MUNICIPIO_RES FROM covidHistorico.dbo.[datoscovid_centro_sur]
     UNION
-    -- Nodo 4 MySQL
-    SELECT MUNICIPIO_RES FROM OPENQUERY(NODO4_MYSQL, '
-        SELECT DISTINCT MUNICIPIO_RES 
-        FROM datoscovid
-        WHERE MUNICIPIO_RES NOT IN (
-            SELECT DISTINCT MUNICIPIO_RES 
-            FROM datoscovid 
-            WHERE CLASIFICACION_FINAL = 3 AND (DIABETES = 1 OR OBESIDAD = 1 OR TABAQUISMO = 1)
-        )
-    ')
-) AS municipios_limpios
+    SELECT MUNICIPIO_RES FROM OPENQUERY([MYSQLYUVIA], 'SELECT MUNICIPIO_RES FROM datoscovid')
+) AS todos_municipios
+WHERE MUNICIPIO_RES NOT IN (SELECT MUNICIPIO_RES FROM #temporal_municipios)
 ORDER BY MUNICIPIO_RES;
+
+DROP TABLE #temporal_municipios;
+
+-------Consulta 5-----------------------------------------------------
+--Estados con más casos recuperados
 
 ---------------------------------Consulta 5 Modificada ---------------------------------------------------------------------------
 SELECT ENTIDAD_NAC AS estado, SUM(total_recuperados_con_neumonia) AS total
