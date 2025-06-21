@@ -163,34 +163,33 @@ DROP TABLE #temporal_municipios;
 
 -------Consulta 5-----------------------------------------------------
 --Estados con más casos recuperados
-
----------------------------------Consulta 5 Modificada ---------------------------------------------------------------------------
-SELECT ENTIDAD_NAC AS estado, SUM(total_recuperados_con_neumonia) AS total
+SELECT ENTIDAD_UM, COUNT(*) AS Casos_recuperados
 FROM (
-    SELECT ENTIDAD_NAC, COUNT(*) AS total_recuperados_con_neumonia
-    FROM NODO1_SQL.covidHistorico.dbo.datoscovid
-    WHERE CLASIFICACION_FINAL = 3 AND NEUMONIA = 1 AND FECHA_DEF IS NULL
-    GROUP BY ENTIDAD_NAC
+    -- Nodo centro_norte (local)
+    SELECT ENTIDAD_UM
+    FROM [PC-MONZEE\SQLEXPRESS03].[covidHistorico].[dbo].[datoscovid_centro_norte]
+    WHERE NEUMONIA = 1 AND FECHA_DEF = '9999-99-99'
     UNION ALL
-    SELECT ENTIDAD_NAC, COUNT(*)
-    FROM NODO2_SQL.covidHistorico.dbo.datoscovid
-    WHERE CLASIFICACION_FINAL = 3 AND NEUMONIA = 1 AND FECHA_DEF IS NULL
-    GROUP BY ENTIDAD_NAC
+    -- Nodo norte
+    SELECT ENTIDAD_UM
+    FROM [YUVIA].[covidHistorico].[dbo].[datoscovid_norte]
+        WHERE NEUMONIA = 1 AND FECHA_DEF = '9999-99-99 '
     UNION ALL
-    SELECT ENTIDAD_NAC, COUNT(*)
-    FROM NODO3_SQL.covidHistorico.dbo.datoscovid
-    WHERE CLASIFICACION_FINAL = 3 AND NEUMONIA = 1 AND FECHA_DEF IS NULL
-    GROUP BY ENTIDAD_NAC
+	-- Nodo centro_sur
+    SELECT ENTIDAD_UM
+    FROM [25.49.245.229\SQLEXPRESS].[covidHistorico].[dbo].[datoscovid_centro_sur]
+    WHERE NEUMONIA = 1 AND FECHA_DEF = '9999-99-99'
     UNION ALL
-    SELECT * FROM OPENQUERY(NODO4_MYSQL, '
-        SELECT ENTIDAD_NAC, COUNT(*) AS total_recuperados_con_neumonia
-        FROM datoscovid
-        WHERE CLASIFICACION_FINAL = 3 AND NEUMONIA = 1 AND FECHA_DEF IS NULL
-        GROUP BY ENTIDAD_NAC
+    -- Nodo CENTRO MYSQLYUVIA
+    SELECT ENTIDAD_UM
+    FROM OPENQUERY(MYSQLYUVIA, '
+        SELECT ENTIDAD_UM
+        FROM covidhistorico.datoscovid
+        WHERE NEUMONIA = 1 AND FECHA_DEF = ''9999-99-99''
     ')
-) AS recuperados
-GROUP BY ENTIDAD_NAC
-ORDER BY total DESC;
+) AS datos_unidos
+GROUP BY ENTIDAD_UM
+ORDER BY Casos_recuperados DESC;
 
 ------------------------------Consulta 7 Modificada ---------------------------------------------------
 SELECT ENTIDAD_UM, FECHA_INGRESO, CLASIFICACION_FINAL
